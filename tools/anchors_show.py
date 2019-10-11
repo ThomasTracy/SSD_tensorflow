@@ -1,10 +1,7 @@
-from PIL import Image
 from matplotlib import pyplot as plt
 import numpy
 from PIL import Image
-import tensorflow as tf
-import tensorflow.contrib.slim as slim
-from nets import custom_layers, ssd_vgg
+
 
 def anchor_points_show(x, y):
     plt.scatter(y, x, c='b', marker='.')
@@ -30,20 +27,3 @@ def anchor_one_layer_show(image, x, y, w, h):
         y_draw = 500. - h_draw/2
         plt.gca().add_patch(plt.Rectangle((x_draw, y_draw), w_draw, h_draw, edgecolor='r', linewidth=1, facecolor='None'))
     plt.show()
-
-image = "D:\\Pycharm\\Projects\\SSD_tensorflow\\test.jpg"
-y, x, h, w = ssd_vgg.ssd_anchor_one_layer(
-                                img_shape=(512, 512),
-                                layer_shape=(64, 64),
-                                anchor_size=(296.96, 378.88),
-                                anchor_ratio=(2, .5, 3, 1./3),
-                                anchor_step=128,
-                                offset=0.5,
-                                dtype=numpy.float32
-                                )
-
-anchor_one_layer_show(image, x, y, w, h)
-print()
-
-
-
