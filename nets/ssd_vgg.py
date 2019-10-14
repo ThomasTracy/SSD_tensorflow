@@ -1,6 +1,7 @@
 import math
 import numpy
-from nets import custom_layers
+from Utils import bbox
+from nets import custom_layers, ssd_common
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 from collections import namedtuple
@@ -99,16 +100,68 @@ class SSDNet(object):
 
         '''
         The feat_shape might be different with default definition
+        So that it is necessary to update
         '''
         if update_feat_shape:
             shapes = ssd_feat_shape_from_net(r[0], self.params.feat_shapes)
             self.params = self.params._replace(feat_shapes=shapes)
         return r
 
+    def update_feat_shape(self, predictions):
+        shapes = ssd_feat_shape_from_net(predictions, self.params.feat_shapes)
+        self.params = self.params._replace(feat_shapes=shapes)
+
+    def anchors(self, img_shape, dtype=numpy.float32):
+        return ssd_anchor_all_layers(img_shape=img_shape,
+                                     layer_shape=self.params.feat_layers,
+                                     anchor_sizes=self.params.anchor_sizes,
+                                     anchor_ratios=self.params.anchor_ratios,
+                                     anchor_steps=self.params.anchor_steps,
+                                     offsets=self.params.anchor_offsets,
+                                     dtype=dtype)
+
+    def bboxes_encode(self, labels, bboxes, anchors, scope=None):
+        return ssd_common.ssd_bboxes_encode(labels, bboxes, anchors,
+                                            self.params.num_classes,
+                                            self.params.no_anno_lable,
+                                            gt_threshold=0.5,
+                                            prior_scaling=self.params.prior_scaling,
+                                            scope=scope)
+
+    def detected_bboxes(self, predictions, locations,
+                        select_threshold=None, nms_threshold=0.5,
+                        clipping_bbox=None, top_k=400, keep_top_k=200):
+        #得到对应类别的得分值以及bbox
+        rscores, rbboxes = \
+            ssd_common.ssd_bboxes_select(predictions, locations,
+                                         select_threshold=select_threshold,
+                                         num_classes=self.params.num_classes)
+        # 按照得分高低，筛选出400个bbox和对应得分
+        rscores, rbboxes = \
+            bbox.bboxes_sort(rscores, rbboxes, top_k=top_k)
+        # 应用非极大值抑制，筛选掉与得分最高bbox重叠率大于0.5的，保留200个
+        rscores, rbboxes = \
+            bbox.bboxes_nms_batch(rscores, rbboxes,
+                                  nms_threshold=nms_threshold,
+                                  keep_top_k=keep_top_k)
+        if clipping_bbox is not None:
+            rbboxes = bbox.bboxes_clip(clipping_bbox, rbboxes)
+        return rscores, rbboxes
 
 #-------------------------------------------------
 #                  Some Tools
 #-------------------------------------------------
+
+def ssd_feat_shape_from_net(predictions, default_shapes=None):      #Get feature maps' shape form prediction tensors
+    feat_shape = []
+    for pre in predictions:
+        shape = pre.get_shape().as_list()[1:4]
+        if None in shape:
+            return default_shapes
+        else:
+            feat_shape.append(shape)
+    return feat_shape
+
 
 def ssd_anchor_one_layer(
         img_shape,

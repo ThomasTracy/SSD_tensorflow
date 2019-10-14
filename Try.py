@@ -1,35 +1,11 @@
 from PIL import Image
+from tools import anchors_show
 from matplotlib import pyplot as plt
 import numpy
 from PIL import Image
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 from nets import custom_layers, ssd_vgg
-
-def anchor_points_show(x, y):
-    plt.scatter(y, x, c='b', marker='.')
-    plt.grid(True)
-    plt.show()
-
-def anchor_one_layer_show(image, x, y, w, h):
-    img = Image.open(image)
-    image_size = img.size
-    x = x.flatten()
-    y = y.flatten()
-    x_expand = x * image_size[0]
-    y_expand = y * image_size[1]
-    w_expand = w * image_size[0]
-    h_expand = h * image_size[1]
-    plt.figure('Image')
-    plt.imshow(img)
-    # for (x_draw, y_draw) in zip(x_expand, y_expand):
-    #     for (w_draw, h_draw) in zip(w_expand, h_expand):
-    #         plt.gca().add_patch(plt.Rectangle((x_draw, y_draw), w_draw, h_draw, edgecolor='r', linewidth=1))
-    for (w_draw, h_draw) in zip(w_expand, h_expand):
-        x_draw = 500. - w_draw/2
-        y_draw = 500. - h_draw/2
-        plt.gca().add_patch(plt.Rectangle((x_draw, y_draw), w_draw, h_draw, edgecolor='r', linewidth=1, facecolor='None'))
-    plt.show()
 
 image = "D:\\Pycharm\\Projects\\SSD_tensorflow\\test.jpg"
 y, x, h, w = ssd_vgg.ssd_anchor_one_layer(
@@ -42,8 +18,24 @@ y, x, h, w = ssd_vgg.ssd_anchor_one_layer(
                                 dtype=numpy.float32
                                 )
 
-anchor_one_layer_show(image, x, y, w, h)
-print()
+i = 0
+n =10
+def cond(i, n):
+    return i < n
 
+def body(i, n):
+    i = i + 1
+    print(i)
+    print("hahahahaha")
+    return i, n
+# i, n = tf.while_loop(cond, body, [i, n])
 
+a = tf.ones(shape=[3,3])
+b = tf.reshape(tf.range(0,24, dtype=tf.float32), [2,3,4])
 
+c = tf.argmax(b, axis=2)
+d = tf.reduce_max(b, axis=2)
+
+with tf.Session() as sess:
+    print(sess.run(c))
+    print(sess.run(d))

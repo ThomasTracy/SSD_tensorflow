@@ -1,7 +1,7 @@
 import numpy
 import tensorflow as tf
 
-def ssd_bbox_encode_one_layer(labels,
+def ssd_bboxes_encode_one_layer(labels,
                               bboxes,                   #(N x 4) of GT bounding boxes
                               anchor_layer,
                               num_classes,
@@ -34,8 +34,8 @@ def ssd_bbox_encode_one_layer(labels,
         #Overlapping percentage (IoU) between GT bbox and proposed bbox A∩B / A∪B
         overlap_ymin = tf.maximum(y_min, bbox[0])   #Overlap_ymin: (64, 64, 1) bbox[0] is a number
         overlap_xmin = tf.maximum(x_min, bbox[1])   #Is bbox[0] a number? Or (batch, 64, 64, 4) ????
-        overlap_ymax = tf.maximum(y_max, bbox[2])
-        overlap_xmax = tf.maximum(x_max, bbox[3])
+        overlap_ymax = tf.minimum(y_max, bbox[2])
+        overlap_xmax = tf.minimum(x_max, bbox[3])
 
         h = tf.maximum(overlap_ymax - overlap_ymin, 0.)
         w = tf.maximum(overlap_xmax - overlap_xmin, 0.)
@@ -48,8 +48,8 @@ def ssd_bbox_encode_one_layer(labels,
     def intersection_with_anchor(bbox):                 #A∩B / B  score of proposed anchor
         overlap_ymin = tf.maximum(y_min, bbox[0])
         overlap_xmin = tf.maximum(x_min, bbox[1])
-        overlap_ymax = tf.maximum(y_max, bbox[2])
-        overlap_xmax = tf.maximum(x_max, bbox[3])
+        overlap_ymax = tf.minimum(y_max, bbox[2])
+        overlap_xmax = tf.minimum(x_max, bbox[3])
 
         h = tf.maximum(overlap_ymax - overlap_ymin, 0.)
         w = tf.maximum(overlap_xmax - overlap_xmin, 0.)
@@ -126,7 +126,7 @@ def ssd_bboxes_encode(labels,           #From absolut boxes to relative Translat
         for i, anchor_layer in enumerate(anchors):
             with tf.name_scope('bbox_encode_block_%i' %i):
                 t_label, t_loc, t_score = \
-                ssd_bbox_encode_one_layer(labels, bboxes,
+                ssd_bboxes_encode_one_layer(labels, bboxes,
                                           anchor_layer, num_classes,
                                           no_annotation_label,
                                           gt_threshold, prior_scaling, dtype)
