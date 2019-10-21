@@ -105,7 +105,7 @@ def ssd_bboxes_encode_one_layer(labels,
     feat_h = tf.log(feat_h / h_ref) / prior_scaling[2]          #Also (64, 64, 4)?
     feat_w = tf.log(feat_w / h_ref) / prior_scaling[3]
 
-    feat_locations = tf.stack([feat_cy, feat_cx, feat_h, feat_w], axis=-1)      #(64, 64, 4, 3)
+    feat_locations = tf.stack([feat_cy, feat_cx, feat_h, feat_w], axis=-1)      #(64, 64, 4, 4stacks)
     # 这个地方损失函数其实是我们预测的是变换，我们实际的框和anchor之间的变换和我们预测的变换之间的loss。
     # 我们回归的是一种变换。并不是直接预测框，这个和YOLO是不一样的。和Faster RCNN是一样的
     return feat_labels, feat_locations, feat_scores
@@ -191,13 +191,13 @@ def ssd_bboxes_select_layer(predictions_layer, locations_layer,
 
         for i_class in range(0, num_classes):
             if i_class != ignore_class:
-                score = predictions_layer[:, :, i_class]                    #(1, 64x64x4)
-                fmask = tf.cast(tf.greater_equal(score, select_threshold), score.dtype)
-                score = score * fmask                           #(1, 64x64x4)
-                bboxes = locations_layer * tf.expand_dims(fmask, dim=-1)    #(1, 64x64x4, 4)
+                score = predictions_layer[:, :, i_class]                    # (1, 64x64x4)
+                fmask = tf.cast(tf.greater_equal(score, select_threshold), score.dtype)     # 筛选出得分大于阈值的预测框， 小于的置零
+                score = score * fmask                           # (1, 64x64x4)， 筛选出得分大于阈值的预测框的坐标
+                bboxes = locations_layer * tf.expand_dims(fmask, dim=-1)    # (1, 64x64x4, 4)
 
-                dic_score[i_class] = score          #(1, 64x64x4)
-                dic_bbox[i_class] = bboxes      #(1, 64x64x4, 4)
+                dic_score[i_class] = score          # (1, 64x64x4)
+                dic_bbox[i_class] = bboxes      # (1, 64x64x4, 4)
 
         return dic_score, dic_bbox
 

@@ -9,6 +9,7 @@ from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import variable_scope
 
 
+@add_arg_scope
 def l2_normalization(
         inputs,
         scaling=False,                                          #Scaling after normalization
@@ -57,6 +58,7 @@ def l2_normalization(
 
         return utils.collect_named_outputs(outputs_collections, sc.original_name_scope, outputs)
 
+@add_arg_scope
 def pad2d(
         inputs,
         pad=(0,0),
@@ -73,6 +75,7 @@ def pad2d(
         out = tf.pad(inputs, paddings, mode=mode)
         return out
 
+@add_arg_scope
 def channel_to_last(            #Push the channel dimension to the last position
     inputs,
     data_format='NHWC',
@@ -84,3 +87,17 @@ def channel_to_last(            #Push the channel dimension to the last position
         elif data_format == 'NCHW':
             out = tf.transpose(inputs, perm=(0, 2, 3, 1))
         return out
+
+
+def abs_smooth(x):
+    """Smoothed absolute function. Useful to compute an L1 smooth error.
+    Define as:
+        x^2 / 2         if abs(x) < 1
+        abs(x) - 0.5    if abs(x) > 1
+    We use here a differentiable definition using min(x) and abs(x). Clearly
+    not optimal, but good enough for our purpose!
+    """
+    absx = tf.abs(x)
+    minx = tf.minimum(absx, 1)
+    r = 0.5 * ((absx - 1) * minx + absx)
+    return r
