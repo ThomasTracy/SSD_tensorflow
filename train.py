@@ -3,7 +3,8 @@ import tensorflow.contrib.slim as slim
 
 from nets import ssd_vgg
 from tensorflow.python.ops import control_flow_ops
-from preprocessing import ssd_vgg_preproccessing
+from preprocessing import ssd_vgg_preprocessing
+from Utils import tf_utils
 
 
 
@@ -181,7 +182,8 @@ def main(_):
         ssd_shape = ssd_net.params.img_shape
         ssd_anchors = ssd_net.anchors(ssd_shape)
         # Preprocessing function
-
+        image_preprocessing_fun = ssd_vgg_preprocessing.preprocess_image
+        tf_utils.print_configs(FLAGS.__flags, ssd_params, da)
 
 
 if __name__ == '__main__':
