@@ -5,6 +5,7 @@ from nets import ssd_vgg
 from tensorflow.python.ops import control_flow_ops
 from preprocessing import ssd_vgg_preprocessing
 from Utils import tf_utils
+from datasets import dataset_factory
 
 
 
@@ -174,6 +175,11 @@ def main(_):
     tf.logging.set_verbosity(tf.logging.DEBUG)
     tf.logging.debug("hahahaha %s" %FLAGS.dataset_dir )
     with tf.Graph().as_default():
+
+        dataset = dataset_factory.get_dataset(
+            FLAGS.dataset_name, FLAGS.dataset_split_name, FLAGS.dataset_dir
+        )
+
         #SSD Net and anchors
         ssd_class = ssd_vgg.SSDNet
         ssd_params = ssd_class.default_parameters._replace(num_classes=FLAGS.num_classes)
@@ -181,9 +187,81 @@ def main(_):
         ssd_net = ssd_class(ssd_params)
         ssd_shape = ssd_net.params.img_shape
         ssd_anchors = ssd_net.anchors(ssd_shape)
+
         # Preprocessing function
-        image_preprocessing_fun = ssd_vgg_preprocessing.preprocess_image
-        tf_utils.print_configs(FLAGS.__flags, ssd_params, da)
+        image_preprocessing_fun = ssd_vgg_preprocessing.preprocess_image        # Need is_train = True
+        tf_utils.print_configs(FLAGS.__flags, ssd_params, dataset.data_sources, FLAGS.train_dir)
+
+        #--------------------------------------------
+        #         Data provider and batches
+        # -------------------------------------------
+        with tf.device('/gpu:0'):
+            with tf.name_scope(FLAGS.dataset_name + '_data_provider'):
+                provider = slim.dataset_data_provider.DatasetDataProvider(
+                    dataset,
+                    num_readers=FLAGS.num_readers,
+                    common_queue_capacity=20*FLAGS.batch_size,
+                    common_queue_min=10*FLAGS.batch_size,
+                    shuffle=True
+                )
+            [image, shape, gtlabels, gtbboxes] = provider.get(['image',
+                                                               'shape',
+                                                               'object/label',
+                                                               'object/bbox'])
+            # Pre-processing image, labels and bboxes
+            image, gtlabels, gtbboxes = image_preprocessing_fun(image, gtlabels,
+                                                                gtbboxes, out_shape=ssd_shape,
+                                                                data_format=DATA_FORMAT,
+                                                                is_training=True)
+            # Encode groundtruth labels and bboxes
+            gtclasses, gtlocations, gtscores = ssd_net.bboxes_encode(gtlabels,
+                                                                     gtbboxes,
+                                                                     ssd_anchors)
+            batch_shape = [1] + [len(ssd_anchors)] * 3          #[1, len, len, len]
+
+            # Training batch and queue
+            r = tf.train.batch(
+                tf_utils.reshape_list([image, gtclasses, gtlocations, gtscores]),
+                batch_size=FLAGS.batch_size,
+                num_threads=FLAGS.num_preprocessing_threads,
+                capacity=5 * FLAGS.batch_size
+            )
+            b_image, b_gtclasses, b_gtlocations, b_gtscores = \
+                tf_utils.reshape_list(r, batch_shape)
+            batch_queue = slim.prefetch_queue.prefetch_queue(
+                tf_utils.reshape_list([b_image, b_gtclasses, b_gtlocations, b_gtscores]),
+                capacity=2
+            )
+
+        #--------------------------------------------------
+        #                 Clone on every GPU
+        #--------------------------------------------------
+        def clone_fn(batch_queue):
+            b_image, b_gtclasses, b_gtlocations, b_gtscores = \
+                tf_utils.reshape_list(batch_queue.dequeue(), batch_shape)
+
+            arg_scope = ssd_net.arg_scope(weight_decay=FLAGS.weight_decay,
+                                          data_format=DATA_FORMAT)
+            with slim.arg_scope(arg_scope):
+                prediction, location, logits, end_points = \
+                    ssd_net.net(b_image, is_training=True)
+
+            ssd_net.losses(logits, location,
+                           b_gtclasses, b_gtlocations, b_gtscores,
+                           match_threshold=FLAGS.match_threshold,
+                           negative_ratio=FLAGS.negative_ratio,
+                           alpha=FLAGS.loss_alpha,
+                           label_smoothing=FLAGS.label_smoothing)
+        return end_points
+
+        summaries = set(tf.get_collection(tf.GraphKeys.SUMMARIES))
+
+        # ---------------------------------------------------------
+        #                 Summary for first clone
+        # ---------------------------------------------------------
+        clones = _
+        first_clone_scope = _
+
 
 
 if __name__ == '__main__':

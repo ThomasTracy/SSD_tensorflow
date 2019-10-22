@@ -112,6 +112,9 @@ class SSDNet(object):
         shapes = ssd_feat_shape_from_net(predictions, self.params.feat_shapes)
         self.params = self.params._replace(feat_shapes=shapes)
 
+    def arg_scope(self, weight_decay=0.0005, data_format='NHWC'):
+        return ssd_arg_scope(weight_decay, data_format=data_format)
+
     def anchors(self, img_shape, dtype=numpy.float32):
         return ssd_anchor_all_layers(img_shape=img_shape,
                                      layer_shape=self.params.feat_shapes,

@@ -8,6 +8,7 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 from nets import custom_layers, ssd_vgg
 from tensorflow.python.ops import control_flow_ops
+from tensorflow.python.client import device_lib
 
 image = "D:\\Pycharm\\Projects\\SSD_tensorflow\\test.jpg"
 y, x, h, w = ssd_vgg.ssd_anchor_one_layer(
@@ -45,7 +46,12 @@ logit = tf.random_normal([5,20], mean=1)
 label = numpy.random.randint(2, size=(5,20))
 
 new_b = tf.transpose(b, perm=(2, 0, 1))
-print(new_b.get_shape())
+
+list_a = []
+list_b = [1,2,3]
+list_c = [2,3,4,5,6]
+print([1]+[3] * 3)
+
 
 def apply_with_randon_selector(x, func, num_case):
     sel = tf.random_uniform([], maxval=num_case, dtype=tf.int32)
@@ -56,10 +62,11 @@ def show(x=0, case=0):
     return x
 
 sel = numpy.random.randint(5)
-print(sel)
 result = control_flow_ops.merge([show(control_flow_ops.switch(
           sel, tf.equal(sel, case))[1], case)
           for case in range(5)])
+
+print(device_lib.list_local_devices())
 
 # with tf.Session() as sess:
     # print(sess.run(result))
