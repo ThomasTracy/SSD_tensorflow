@@ -45,7 +45,7 @@ class SSDNet(object):
         num_classes=21,
         no_anno_lable=2,
         feat_layers=['block4', 'block7', 'block8', 'block9', 'block10', 'block11', 'block12'],
-        feat_shapes=[(64, 64), (30, 30), (15, 15), (8, 8), (4, 4), (2, 2), (1, 1)],
+        feat_shapes=[(64, 64), (32, 32), (16, 16), (8, 8), (4, 4), (2, 2), (1, 1)],
         anchor_size_bounds=[0.1, 0.9],
         anchor_sizes=[
             (21.0, 51.0),
@@ -475,7 +475,7 @@ def ssd_losses(logits, locations,                       #  Predicted
             loss = tf.div(tf.reduce_sum(loss * fpos_mask), batch_size, name='value')
             tf.losses.add_loss(loss)
 
-        with tf.name_scope('cross_entropy<neg'):
+        with tf.name_scope('cross_entropy_neg'):
             loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits,        # (N, num_classes): (batch size, 21)
                                                                   labels=no_classes)    # 1D: (batch size): id of classes 0-20
             loss = tf.div(tf.reduce_sum(loss * fneg_mask), batch_size, name='value')

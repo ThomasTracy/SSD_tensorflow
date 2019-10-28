@@ -54,7 +54,7 @@ def l2_normalization(
             elif data_format == 'NCHW':
                 scale = tf.expand_dims(scale, axis=-1)
                 scale = tf.expand_dims(scale, axis=-1)
-                outputs = tf.multiply(outputs)
+                outputs = tf.multiply(outputs, scale)
 
         return utils.collect_named_outputs(outputs_collections, sc.original_name_scope, outputs)
 

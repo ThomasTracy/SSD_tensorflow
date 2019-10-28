@@ -4,13 +4,14 @@ import tensorflow.contrib.slim as slim
 from datasets import dataset_utils
 
 
-FILE_PATTERN = 'voc_2007_%s_*.tfrecord'
+FILE_PATTERN = 'voc_%s_*.tfrecord'
 ITEMS_TO_DESCRIPTIONS = {
     'image': 'A color image of varying height and width.',
     'shape': 'Shape of the image',
     'object/bbox': 'A list of bounding boxes, one per each object.',
     'object/label': 'A list of labels, one per each object.',
 }
+
 # (Images, Objects) statistics on every class.
 TRAIN_STATISTICS = {
     'none': (0, 0),
@@ -132,6 +133,7 @@ def get_split(split_name, dataset_dir, file_pattern,        #the pattern contain
         keys_to_features, items_to_handlers
     )
 
+    labels_to_name = None
     if dataset_utils.has_labels(dataset_dir):
         labels_to_name = dataset_utils.read_label_file(dataset_dir)
 

@@ -127,7 +127,7 @@ def distorted_bounding_box_crop(image,
                                 bboxes,
                                 min_object_covered=0.3,
                                 aspect_ratio_range=(0.9, 1.1),
-                                area_range=(0.1, 1.0),
+                                area_range=(0.5, 1.0),
                                 max_attempts=200,
                                 clip_bboxes=True,
                                 scope=None):
@@ -182,7 +182,8 @@ def preprocess_for_train(image, labels, bboxes,
         # Randonly distort color
         apply_with_random_selector(
             dis_image,
-            lambda x, ordering: distort_color(x, ordering, fast_mode)
+            lambda x, ordering: distort_color(x, ordering, fast_mode),
+            num_case=4
         )
         tf_summary_image(dis_image, bboxes, 'image_color_distorted')
 

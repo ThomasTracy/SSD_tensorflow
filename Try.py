@@ -9,64 +9,53 @@ import tensorflow.contrib.slim as slim
 from nets import custom_layers, ssd_vgg
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.client import device_lib
-
-image = "D:\\Pycharm\\Projects\\SSD_tensorflow\\test.jpg"
-y, x, h, w = ssd_vgg.ssd_anchor_one_layer(
-                                img_shape=(512, 512),
-                                layer_shape=(64, 64),
-                                anchor_size=(296.96, 378.88),
-                                anchor_ratio=(2, .5, 3, 1./3),
-                                anchor_step=128,
-                                offset=0.5,
-                                dtype=numpy.float32
-                                )
-
-i = 0
-n =10
-def cond(i, n):
-    return i < n
-
-def body(i, n):
-    i = i + 1
-    print(i)
-    print("hahahahaha")
-    return i, n
-# i, n = tf.while_loop(cond, body, [i, n])
-
-a = tf.ones(shape=[3,3])
-b = tf.reshape(tf.range(0,24, dtype=tf.float32), [2,3,4])
-x = tf.reshape(b, [-1])
-value, index = tf.nn.top_k(x, k=3)
-
-c = tf.argmax(b, axis=2)
-d = tf.reduce_max(b, axis=2)
-prediction = slim.softmax(b)
-
-logit = tf.random_normal([5,20], mean=1)
-label = numpy.random.randint(2, size=(5,20))
-
-new_b = tf.transpose(b, perm=(2, 0, 1))
-
-list_a = []
-list_b = [1,2,3]
-list_c = [2,3,4,5,6]
-print([1]+[3] * 3)
+from preprocessing import ssd_vgg_preprocessing
+from tools import show_tfrecord
+from train import FLAGS
+from nets import ssd_vgg
 
 
-def apply_with_randon_selector(x, func, num_case):
-    sel = tf.random_uniform([], maxval=num_case, dtype=tf.int32)
-    pass
+def run():
+    dataset = show_tfrecord.get_from_tfrecord()
+    provider = slim.dataset_data_provider.DatasetDataProvider(
+        dataset,
+        num_readers=FLAGS.num_readers,
+        common_queue_capacity=20 * FLAGS.batch_size,
+        common_queue_min=10 * FLAGS.batch_size,
+        shuffle=True
+    )
+    preprocess_fun = ssd_vgg_preprocessing.preprocess_image
 
-def show(x=0, case=0):
-    # print("Now the selected is: {} \nAnd case is: {} ".format(x, case))
-    return x
+    [image_org, shape_org, bbox_org, label_org] = provider.get(['image', 'shape', 'object/bbox', 'object/label'])
+    image, label, bbox = preprocess_fun(image_org, label_org,
+                                               bbox_org, out_shape=(512, 512),
+                                               data_format='NCHW',
+                                               is_training=True)
 
-sel = numpy.random.randint(5)
-result = control_flow_ops.merge([show(control_flow_ops.switch(
-          sel, tf.equal(sel, case))[1], case)
-          for case in range(5)])
+    ssd_class = ssd_vgg.SSDNet
+    ssd_param = ssd_class.default_parameters._replace(num_classes=FLAGS.num_classes)
+    print("Class numbers", ssd_params.num_classes)
+    ssd_net = ssd_class(ssd_param)
+    ssd_shape = ssd_net.params.img_shape
+    ssd_anchors =
 
-print(device_lib.list_local_devices())
 
-# with tf.Session() as sess:
-    # print(sess.run(result))
+    with tf.Session() as sess:
+        init_op = tf.global_variables_initializer()
+        sess.run(init_op)
+        coord = tf.train.Coordinator()
+        threads = tf.train.start_queue_runners(coord=coord)
+
+        image, label, bbox= sess.run([image, label, bbox])
+
+        image = numpy.transpose(image, (1, 2, 0))
+        show_tfrecord.show_one_image([image],
+                                     [bbox],
+                                     [label])
+
+        coord.request_stop()
+        coord.join(threads)
+
+
+if __name__ == '__main__':
+    run()

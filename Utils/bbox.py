@@ -1,5 +1,6 @@
 import numpy
 from Utils import tensor
+from Utils import math
 import tensorflow as tf
 
 def bboxes_sort(scores, bboxes, top_k=400, scope=None):
@@ -164,5 +165,5 @@ def bboxes_intersection(bbox_ref, bboxes, name=None):
         # Volumes.
         inter_vol = h * w
         bboxes_vol = (bboxes[2] - bboxes[0]) * (bboxes[3] - bboxes[1])
-        scores = tfe_math.safe_divide(inter_vol, bboxes_vol, 'intersection')
+        scores = math.safe_divide(inter_vol, bboxes_vol, 'intersection')
         return scores
