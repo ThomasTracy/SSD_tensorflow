@@ -10,7 +10,7 @@ from deployment import model_deploy
 
 
 
-DATA_FORMAT = 'NCHW'
+DATA_FORMAT = 'NHWC'
 
 # -------------------------------------
 #           Flags of SSD Net
@@ -28,7 +28,7 @@ tf.app.flags.DEFINE_float(
 # -------------------------------------
 
 tf.app.flags.DEFINE_string(
-    'train_dir', '/tmp/tfmodel/',
+    'train_dir', 'D:\Pycharm\Projects\SSD_tensorflow\\tmp\\tfmodel\\',
     'Directory where checkpoints and event logs are written to.')
 tf.app.flags.DEFINE_integer('num_clones', 1,
                             'Number of model clones to deploy.')
@@ -45,7 +45,7 @@ tf.app.flags.DEFINE_integer(
     'log_every_n_steps', 10,
     'The frequency with which logs are print.')
 tf.app.flags.DEFINE_integer(
-    'save_summaries_secs', 600,
+    'save_summaries_secs', 10,
     'The frequency with which summaries are saved, in seconds.')
 tf.app.flags.DEFINE_integer(
     'save_interval_secs', 600,
@@ -156,7 +156,7 @@ tf.app.flags.DEFINE_string(
     'Model scope in the checkpoint. None if the same as the trained model.')
 tf.app.flags.DEFINE_string(
     'checkpoint_exclude_scopes', None,
-    'Comma-separated list of scopes of variables to exclude when restoring '
+    'Comma-separated list of scopes of variables to exclude when temprestoring '
     'from a checkpoint.')
 tf.app.flags.DEFINE_string(
     'trainable_scopes', None,
@@ -325,7 +325,8 @@ def main(_):
             grad_updates = optimizer.apply_gradients(clones_gradients,
                                                      global_step=global_step)
             update_ops.append(grad_updates)
-            update_op = tf.group(*update_ops)
+            update_op = tf.group(*update_ops)               # *Operations, not lists
+            # All the operations needed to be ran prior
             train_tensor = control_flow_ops.with_dependencies([update_op], total_loss,
                                                               name='train_op')
 
@@ -337,13 +338,29 @@ def main(_):
             # ---------------------------------------------
             #               Now let's start!
             # ---------------------------------------------
-            gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=FLAGS.gpu_memory_fraction)
+            gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=FLAGS.gpu_memory_fraction,
+                                        allow_growth=True)
             config = tf.ConfigProto(log_device_placement=False,
                                     gpu_options=gpu_options)
             saver = tf.train.Saver(max_to_keep=5,
                                    keep_checkpoint_every_n_hours=1.0,
                                    write_version=2,
-                                   pad_step_number=False)
+                                   pad_step_number=False,
+                                   name='Model_ssd_vgg')
+
+
+            def train_step_fn(session, *args, **kwargs):
+                total_loss, should_stop = slim.learning.train_step(session, *args, *kwargs)
+                if train_step_fn.step % 2 == 0:
+                    print('step: %s || loss: %f || gradient: '
+                          %(str(train_step_fn.step), total_loss))
+
+                train_step_fn.step += 1
+                return [total_loss, should_stop]
+
+            train_step_fn.step = 0
+
+
             slim.learning.train(
                 train_tensor,
                 logdir=FLAGS.train_dir,
@@ -353,11 +370,12 @@ def main(_):
                 summary_op=summary_op,
                 number_of_steps=FLAGS.max_number_of_steps,
                 log_every_n_steps=FLAGS.log_every_n_steps,
-                save_summaries_secs=FLAGS.save_summaries_secs,
+                save_summaries_secs=FLAGS.save_summaries_secs,      # Save summaries in seconds
                 saver=saver,
-                save_interval_secs=FLAGS.save_interval_secs,
+                save_interval_secs=FLAGS.save_interval_secs,        # Save checkpoints in seconds
                 session_config=config,
-                sync_optimizer=None
+                sync_optimizer=None,
+                train_step_fn=train_step_fn
             )
 
 

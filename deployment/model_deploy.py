@@ -209,7 +209,7 @@ def deploy(config,
 
             if clones_gradients:
                 if summarize_gradients:
-                    summeries |= set(_add_gradients_summaries(clones_gradients))
+                    summaries |= set(_add_gradients_summaries(clones_gradients))
 
                 grad_updates = optimizer.apply_gradients(clones_gradients,
                                                          global_step=global_step)
@@ -383,7 +383,7 @@ class DeploymentConfig(object):
                 if node_def.op == 'Variable':
                     t = self._task
                     self._task = (self._task + 1) % self._tasks
-                    d = '%s/task:%d' (self._device, t)
+                    d = '%s/task:%d' % (self._device, t)
                     return d
                 else:
                     return op.device
